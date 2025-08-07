@@ -32,7 +32,7 @@ class Knife:
         self.x = x
         self.y = y
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
-        self.active = True  # Se está na tela e pode causar dano
+        self.active = True
 
     def update(self):
         if self.facing_right:
@@ -40,7 +40,6 @@ class Knife:
         else:
             self.x -= self.speed
         self.rect.x = self.x
-        # Desativa se sair da tela
         if self.x > WIDTH or self.x + self.width < 0:
             self.active = False
 
@@ -69,22 +68,21 @@ class Fighter:
         self.controls = controls
         self.facing_right = True
 
-        # Poder especial: faca
         self.special_ready = True
         self.special_cooldown = 0
-        self.knives = []  # lista de facas lançadas (limitaremos 1 por vez)
+        self.knives = []
         self.special_damage = 8
 
     def draw(self, surface):
         pygame.draw.rect(surface, self.color, (self.x, self.y, self.width, self.height))
 
-        # Vida
+        # Health bar
         health_bar_width = 100
         health_ratio = self.health / self.max_health
         pygame.draw.rect(surface, RED, (self.x, self.y - 20, health_bar_width, 10))
         pygame.draw.rect(surface, GREEN, (self.x, self.y - 20, health_bar_width * health_ratio, 10))
 
-        # Barra especial
+        # Special bar
         special_bar_width = 100
         if self.special_ready:
             pygame.draw.rect(surface, PURPLE, (self.x, self.y - 35, special_bar_width, 6))
@@ -94,11 +92,11 @@ class Fighter:
             pygame.draw.rect(surface, (100, 0, 100), (self.x, self.y - 35, special_bar_width, 6))
             pygame.draw.rect(surface, PURPLE, (self.x, self.y - 35, special_bar_width * cooldown_ratio, 6))
 
-        # Ataque corpo a corpo
+        # Attack box
         if self.is_attacking and self.attack_box:
             pygame.draw.rect(surface, YELLOW, self.attack_box)
 
-        # Desenha facas
+        # Draw knives
         for knife in self.knives:
             if knife.active:
                 knife.draw(surface)
@@ -136,14 +134,13 @@ class Fighter:
             self.attack_box = pygame.Rect(attack_x, attack_y, attack_width, attack_height)
 
     def use_special(self):
-        # Lança uma faca se puder (só 1 faca por vez)
         if self.special_ready and len(self.knives) == 0:
             knife_x = self.x + self.width if self.facing_right else self.x - 30
             knife_y = self.y + self.height // 2 - 5
             new_knife = Knife(knife_x, knife_y, self.facing_right)
             self.knives.append(new_knife)
             self.special_ready = False
-            self.special_cooldown = FPS * 5  # 5 segundos para recarregar
+            self.special_cooldown = FPS * 5
 
     def cooldowns(self):
         if self.attack_cooldown > 0:
@@ -157,7 +154,6 @@ class Fighter:
         else:
             self.special_ready = True
 
-        # Atualiza facas e remove inativas
         for knife in self.knives:
             knife.update()
         self.knives = [k for k in self.knives if k.active]
@@ -185,17 +181,15 @@ def draw_window():
     pygame.display.update()
 
 def check_attacks():
-    # Ataques corpo a corpo
     if player1.is_attacking and player1.attack_box.colliderect(player2.get_rect()):
         player2.health -= 1
     if player2.is_attacking and player2.attack_box.colliderect(player1.get_rect()):
         player1.health -= 1
 
-    # Facas especiais
     for knife in player1.knives:
         if knife.active and knife.rect.colliderect(player2.get_rect()):
             player2.health -= player1.special_damage
-            knife.active = False  # faca some depois do dano
+            knife.active = False
     for knife in player2.knives:
         if knife.active and knife.rect.colliderect(player1.get_rect()):
             player1.health -= player2.special_damage
@@ -219,4 +213,37 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
-            if event.type == pygame
+            if event.type == pygame.KEYDOWN:
+                if event.key == player1.controls['attack']:
+                    player1.attack()
+                if event.key == player2.controls['attack']:
+                    player2.attack()
+                if event.key == player1.controls['special']:
+                    player1.use_special()
+                if event.key == player2.controls['special']:
+                    player2.use_special()
+
+        if not winner_text:
+            player1.move(keys)
+            player2.move(keys)
+            player1.apply_gravity()
+            player2.apply_gravity()
+            player1.cooldowns()
+            player2.cooldowns()
+            check_attacks()
+            winner_text = check_winner()
+        else:
+            screen.fill(WHITE)
+            text = font.render(winner_text, True, BLACK)
+            screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - text.get_height() // 2))
+            pygame.display.update()
+            continue
+
+        draw_window()
+
+    pygame.quit()
+    sys.exit()
+
+if __name__ == "__main__":
+    main()
+    
